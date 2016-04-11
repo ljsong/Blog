@@ -5,12 +5,12 @@
 　　[1. new expression和operator new](#section_1) <br />
 　　　　[1.1. new expression](#sub_section_1_1) <br />
 　　　　[1.2. operator new](#sub_section_1_2) <br />
-　　　　　　[1.2.1. replaceable allocation functions](#sub_sction_1_2_1) <br />
-　　　　　　[1.2.2. placement allocation functions](#sub_sction_1_2_2) <br />
-　　　　　　[1.2.3. class-specific allocation functions](#sub_sction_1_2_3) <br />
+　　　　　　[1.2.1. replaceable allocation functions](#sub_section_1_2_1) <br />
+　　　　　　[1.2.2. placement allocation functions](#sub_section_1_2_2) <br />
+　　　　　　[1.2.3. class-specific allocation functions](#sub_section_1_2_3) <br />
 　　[2. delete expression和operator delete](#section_2) <br />
-　　　　[2.1. delete expression](#sub_sction_2_1) <br />
-　　　　[2.2. operator delete](#sub_sction_2_2) <br />
+　　　　[2.1. delete expression](#sub_section_2_1) <br />
+　　　　[2.2. operator delete](#sub_section_2_2) <br />
 　　[3. 总结](#section_3) <br />
 　　[4. 参考文献](#section_4) <br />
 
@@ -70,7 +70,7 @@ new expression(T) {		// 只是用于形象的描述
 ```
 上述6种`operator new`的定义可以分为3类进行讨论，其中每一类别中的两种定义又以是否抛出异常(std::bad_alloc或者是继承自std::bad_alloc的子类)区分，下面按照上述三种类别分别介绍：
 
-#### <span id="sub_sction_1_2_1"> 1.2.1 Replaceable allocation functions </span>
+#### <span id="sub_section_1_2_1"> 1.2.1 Replaceable allocation functions </span>
 顾名思义，这类`operator new`函数是可被替换的，当我们提供了一个与定义1或者2相同签名的`operator new`函数时，默认的实现就会被替换为用户自定义的版本。**注意**，当我们定义了多个相同签名的`operator new`函数或者是`operator new`函数被指定为`inline`时，编译器的行为是未知的。以下为测试代码：
 ```C++
 #include <cstdio>
@@ -99,30 +99,49 @@ int main() {
 
 ![Result of replaceable allocation](/home/allen/Pictures/example_code_replaceable_new.png)
 
-####1.2.2 Placement allocation functions
+#### <span id="sub_section_1_2_2">1.2.2 Placement allocation functions </span>
+placement syntax[(定义3,4)](#operator_new_define)主要有以下几个应用场景： 
+
+- default placement
+- preventing exceptions
+- custom allocators
+- debugging
+
+下面按照列出的顺序，分别介绍其使用方法：
+##### Default placement
+[定义3](#operator_new_define)即为default placement的
+##### Preventing exceptions
+##### Custom allocators
+##### Debugging
+
 placement syntax允许程序员向内存分配函数提供额外的参数，例如：
 ```C++
+/* 注意全局作用域内只能有一个operator new的定义,否则编译器行为是未知的
 void* operator new(std::size_t sz, bool b) {
     std::cout << "boolean value of b is: " << b << std::endl;
     return std::malloc(sz);
-}
-int *p1 = new (true) int;
-```
-```C++
-void* operator new(std::size_t sz, std::string prompt) {
-    std::cout << prompt << std::endl;
+}*/
+
+void *operator new(std::size_t sz, std::string str) {
+    std::cout << "We got a string: " << str << std::endl;
     return std::malloc(sz);
 }
-char *p2 = new ("We got a character!") char;
-```
-```C++
-// 最常用的操作
-void* operator new(std::size_t sz, char* buffer) {
-    return buffer;
+
+
+int main() {
+    //int *p1 = new (true) int; 
+    int *p2 = new ("Hello World") int;
+    *p2 = 5;
+    std::cout << "Value of p2 is: " << *p2 << std::endl;
+
+    return 0;
 }
-char *buffer = new char[256];
-char *p3 = new (buffer) char;
 ```
+输出结果如下：
+
+![Result of custom placement alloctions](/home/allen/Pictures/custom_placement_allocations.png)
+
+
 
 
 ## <span id="section_4">4. 参考文献 </span>
