@@ -107,12 +107,30 @@ placement syntax[(定义3,4)](#operator_new_define)主要有以下几个应用�
 - custom allocators
 - debugging
 
-下面按照列出的顺序，分别介绍其使用方法：
-##### Default placement
-[定义3](#operator_new_define)即为default placement的
-##### Preventing exceptions
-##### Custom allocators
-##### Debugging
+下面按照列出的顺序，分别介绍各应用场景：
+##### 1.2.2.1 Default placement(Pointer placement)
+[定义3](#operator_new_define)即为default placement的定义, 这些定义存在于C++的标准库中，不能够被替换或者是重载。例如：
+```C++
+// 错误，不能重载此函数定义
+void* operator new(std::size_t sz, void* buffer) {
+    return buffer;
+}
+
+int main() {
+    return 0;
+}
+```
+将会输出如下错误：
+
+![error_of_redefinition_operator_new](/home/allen/Pictures/error_of_redefinition_operator_new.png)
+
+default placement的用途在于它可以指定内存分配的场所
+
+##### 1.2.2.2 Preventing exceptions
+
+##### 1.2.2.3 Custom allocators
+
+##### 1.2.2.4 Debugging
 
 placement syntax允许程序员向内存分配函数提供额外的参数，例如：
 ```C++
