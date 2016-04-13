@@ -1,6 +1,8 @@
 # C++中的new和delete
 
-前天在[cppreference.com](http://en.cppreference.com/w/ "cppreference.com")上查找资料时，经过层层的链接重定向，偶然翻到了[new expression](http://en.cppreference.com/w/cpp/language/new "new expression")的定义，进入页面前心里还有疑惑：“不应该是operator吗？new expression又是什么意思”。完整的阅读了new expression的介绍后，才发现自己对C++中new的理解很肤浅，所以特此记录下来，一是形成笔记时会再一次梳理内容，可以检验自己是否真正掌握了文章的意思；二是供以后查阅使用。<br />
+最近阅读了[cppreference.com](http://en.cppreference.com/w/ "cppreference.com")上的[new expression](http://en.
+cppreference.com/w/cpp/language/new "new expression")和[operator new](http://en.cppreference.com/w/cpp/memory/
+/operator_new)的定义，收获颇丰，所以特此记录下来，一是形成笔记时会再一次梳理内容，可以检验自己是否真正掌握了文章的意思；二是供以后查阅使用。<br />
 全文按照如下章节组织(本文只讨论单对象内存的申请和释放，数组同理)：<br />
 　　[1. new expression和operator new](#section_1) <br />
 　　　　[1.1. new expression](#sub_section_1_1) <br />
@@ -68,11 +70,12 @@ new expression(T) {		// 只是用于形象的描述
 5. void* T::operator new(std::size_t count);
 6. void* T::operator new(std::size_t count, user_defined_args...);
 ```
-上述6种`operator new`的定义可以分为3类进行讨论，其中每一类别中的两种定义又以是否抛出异常(std::bad_alloc或者是继承自std::bad_alloc的子类)区分，下面按照上述三种类别分别介绍：
+下面按照上述三种类别分别介绍`operator new`函数：
 
 #### <span id="sub_section_1_2_1"> 1.2.1 Replaceable allocation functions </span>
 顾名思义，这类`operator new`函数是可被替换的，当我们提供了一个与定义1或者2相同签名的`operator new`函数时，默认的实现就会被替换为用户自定义的版本。**注意**，当我们定义了多个相同签名的`operator new`函数或者是`operator new`函数被指定为`inline`时，编译器的行为是未知的。以下为测试代码：
 ```C++
+// 代码摘自cppreference
 #include <cstdio>
 #include <cstdlib>
 
@@ -97,7 +100,7 @@ int main() {
 ```
 输出结果如下：
 
-![Result of replaceable allocation](/home/allen/Pictures/example_code_replaceable_new.png)
+![Result of replaceable allocation](images/example_code_replaceable_new.png)
 
 #### <span id="sub_section_1_2_2">1.2.2 Placement allocation functions </span>
 placement syntax[(定义3,4)](#operator_new_define)主要有以下几个应用场景： 
@@ -111,7 +114,7 @@ placement syntax[(定义3,4)](#operator_new_define)主要有以下几个应用�
 ##### 1.2.2.1 Default placement(Pointer placement)
 [定义3](#operator_new_define)即为default placement的定义, 这些定义存在于C++的标准库中，不能够被替换或者是重载。例如：
 ```C++
-// 错误，不能重载此函数定义
+// 错误，不能定义此函数
 void* operator new(std::size_t sz, void* buffer) {
     return buffer;
 }
@@ -122,45 +125,159 @@ int main() {
 ```
 将会输出如下错误：
 
-![error_of_redefinition_operator_new](/home/allen/Pictures/error_of_redefinition_operator_new.png)
+![error_of_redefinition_operator_new](images/error_of_redefinition_operator_new.png)
 
-default placement的用途在于它可以指定内存分配的场所
+default placement主要用于不需要通过`operator new`获取内存(可能已经拥有了一块预先分配好的内存)，但是却需要在此块内存上构造对象的情形，例如：
 
-##### 1.2.2.2 Preventing exceptions
+- 特定硬件地址上存在的对象
+- 多进程/CPU之间的共享内存
 
-##### 1.2.2.3 Custom allocators
-
-##### 1.2.2.4 Debugging
-
-placement syntax允许程序员向内存分配函数提供额外的参数，例如：
+以下为default placement的测试程序：
 ```C++
-/* 注意全局作用域内只能有一个operator new的定义,否则编译器行为是未知的
-void* operator new(std::size_t sz, bool b) {
-    std::cout << "boolean value of b is: " << b << std::endl;
-    return std::malloc(sz);
-}*/
-
-void *operator new(std::size_t sz, std::string str) {
-    std::cout << "We got a string: " << str << std::endl;
-    return std::malloc(sz);
-}
-
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
 
 int main() {
-    //int *p1 = new (true) int; 
-    int *p2 = new ("Hello World") int;
-    *p2 = 5;
-    std::cout << "Value of p2 is: " << *p2 << std::endl;
+    char *buffer = (char*) calloc(sizeof(char), 256);
+    printf("We got a pre-allocated memory, its address is: 0x%x\n", buffer);
+
+    unsigned int *p1 = new(buffer) unsigned int;
+    *p1 = 0x34333231;
+    printf("Allocate an area to p1, its address is: 0x%x\n", p1);
+
+    std::cout << "buffer is: " << buffer << std::endl;
+    free(buffer)
 
     return 0;
 }
 ```
 输出结果如下：
+![result_of_default_placement](images/default_placement.png)
 
-![Result of custom placement alloctions](/home/allen/Pictures/custom_placement_allocations.png)
+##### 1.2.2.2 Preventing exceptions
+C++标准委员会规定，`operator new`(non-placement)函数在出现错误时，例如内存耗尽,需要抛出std::bad_alloc(或是继承自std::bad_alloc的子类)异常，如果不希望处理这些异常，那么我们可以调用`operator new(std::size_t sz, const std::nothrow_t&)`[(定义4)](#operator_new_define)，例如：
+```C++
+// 代码摘自Wikipedia - Placement syntax
+#include <new>
 
+struct T {};
 
+int main() {
+    T *p = new (std::nothrow)T;
+    if (p) {
+        // The storage has been allocated and the constructor called.
+        delete p;
+    } else 
+        ;   // An error has occured. No storage has been allocated and no object constructed.
 
+    return 0;
+}
+```
+**注意**，必须包含<new>头文件，该文件中定义了类型为`std::nothrow_t`的变量`std::nothrow`
+##### 1.2.2.3 Custom allocators
+Custom allocators多用于用户希望自定义管理内存的申请和释放的情形，例如：
+```C++
+// 代码摘自Wikipedia - Placement syntax
+#include <cstdlib>
+class A {
+public:
+    void* allocate(std::size_t);
+    void deallocate(void *);
+};
+
+void* operator new(std::size_t sz, A& arena) {
+    return arena.allocate(size);
+}
+
+void operator delete(void* p, A& arena) {
+    arena.deallocate(p);
+}
+
+A first_arena, second_arena;
+T* p1 = new(first_arena) T;
+T* p2 = new(second_arena) T;
+
+// 不要调用delete语句
+// delete p1;
+// delete p2;
+```
+**注意**，当程序结束时不要使用delete语句释放p1,p2申请的内存，这是因为**C++中没有placement delete expression(请区分placement *function*和placement *expression*)**,想要正确
+释放p1和p2的内存，可以通过如下方式：
+```C++
+operator delete(p1, first_arena);
+operator delete(p2, second_arena);
+```
+或者是定义如下函数并调用：
+```C++
+void destroy(T *p, A& arena) {
+    p->~T();
+    arena.deallocate(p);
+}
+
+destroy(p1, first_arena);
+destroy(p2, second_arena);
+```
+##### 1.2.2.4 Debugging
+通过向`operator new`函数传递行数、文件名等信息，我们可以在内存分配失败时获取到失败处的信息，例如：
+```C++
+// 代码摘自Wikipedia - Placement syntax
+#if defined(DEBUG_NEW)
+void* operator new(std::size_t size, const char* file, int line);
+void* operator new[](std::size_t size, const char* file, int line);
+void* operator delete(void *p, const char* file, int line);
+void* operator delete[](void *p, const char* file, int line);
+#define New new(__FILE__, __LINE__)
+#else
+#define New new
+#endif
+```
+
+#### 1.2.3 <span id="sub_section_1_2_3"> Class-specific allocation functions </span>
+new expression在查找合适的`operator new`函数时总是**先从类作用域**开始查找，当在类作用域内未找到相应的`operator new`函数时才会使用全局定义的`operator new`函数。所以，如果类内定义了`operator new`函数则会覆盖全局作用域内的`operator new`函数。例如,
+```C++
+// class-specific allocation functions
+class A {
+public:
+    static void* operator new(std::size_t sz) {
+        std::cout << "custom new for size " << sz << std::endl;
+        return ::operator new(sz);
+    }
+}；
+
+int main() {
+    A* p1 = new A;
+    delete p1;
+}
+```
+输出结果如下：
+
+![Result of class-specific new](images/result_of_class_scope_new.png)
+
+**注意**, 不论是否使用`static`关键字，`operator new`函数总是静态成员函数。
+
+### 2. <span id="section_2"> delete expression和operator delete </span>
+#### 2.1 delete expression
+delete expression的语法如下：
+```C++
+::(optional) delete expression
+```
+需要注意的是，*expression*必须是一个指向具有[**完整类型**](http://en.cppreference.com/w/cpp/language/type)或是类型可做[**隐式转换**](http://en.cppreference.com/w/cpp/language/implicit_conversion)的对象的指针，指针的值可以是以下三种：
+
+- nullptr
+- new expression分配的指向非数组类型对象的指针
+- new expression分配的非数组的指向父类的子类对象指针
+
+delete expression的定义如下：
+>Destructs object(s) previously allocated by the [new expression](#section_1) and releases obtained memory area
+**注意**，delete expression执行的动作顺序与new expression是相反的，形式化的描述如下：
+
+```C++
+delete expression() {
+    
+}
+```
+### 3. <span id="section_3">总结</span>
 
 ## <span id="section_4">4. 参考文献 </span>
 1. cppreference, operator new: [http://en.cppreference.com/w/cpp/memory/new/operator_new](http://en.cppreference.com/w/cpp/memory/new/operator_new "oeprator new") <br/>
