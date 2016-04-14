@@ -13,15 +13,14 @@ cppreference.com/w/cpp/language/new "new expression")和[operator new](http://en
 　　[2. delete expression和operator delete](#section_2) <br />
 　　　　[2.1. delete expression](#sub_section_2_1) <br />
 　　　　[2.2. operator delete](#sub_section_2_2) <br />
-　　[3. 总结](#section_3) <br />
-　　[4. 参考文献](#section_4) <br />
+　　[3. 结语](#section_3) <br />
 
 ## <span id="section_1"> 1. new expression和operator new </span>
 ### <span id="sub_section_1_1"> 1.1 new expression </span>
 new expression其实就是我们在申请内存时使用的表达式，其定义如下：
 
 ```C++
-/* placement_params 将会在operator new函数章节详细讨论 */
+/* placement_params 将会在operator new函数章节详细介绍 */
 1. ::(optional) new (placement_params)(optional) ( type ) initializer(optional)
 2. ::(optional) new (placement_params)(optional) type initializer(optional)
 ```
@@ -174,7 +173,7 @@ int main() {
     return 0;
 }
 ```
-**注意**，必须包含<new>头文件，该文件中定义了类型为`std::nothrow_t`的变量`std::nothrow`
+**注意**，必须包含 <new\> 头文件，该文件中定义了类型为`std::nothrow_t`的变量`std::nothrow`
 ##### 1.2.2.3 Custom allocators
 Custom allocators多用于用户希望自定义管理内存的申请和释放的情形，例如：
 ```C++
@@ -243,7 +242,7 @@ public:
         std::cout << "custom new for size " << sz << std::endl;
         return ::operator new(sz);
     }
-}；
+};
 
 int main() {
     A* p1 = new A;
@@ -258,30 +257,98 @@ int main() {
 
 ### 2. <span id="section_2"> delete expression和operator delete </span>
 #### 2.1 delete expression
-delete expression的语法如下：
+delete expression可以描述为[new expression](#section_1)的反向操作，唯一不同的是**delete expression没有placement delete expression**，其语法如下：
 ```C++
+// 没有placement_params
 ::(optional) delete expression
 ```
 需要注意的是，*expression*必须是一个指向具有[**完整类型**](http://en.cppreference.com/w/cpp/language/type)或是类型可做[**隐式转换**](http://en.cppreference.com/w/cpp/language/implicit_conversion)的对象的指针，指针的值可以是以下三种：
 
 - nullptr
 - new expression分配的指向非数组类型对象的指针
-- new expression分配的非数组的指向父类的子类对象指针
+- new expression分配的指向继承类对象的基类指针
 
-delete expression的定义如下：
->Destructs object(s) previously allocated by the [new expression](#section_1) and releases obtained memory area
+同样，看下delete expression的定义：
+> *Destructs* object(s) previously allocated by the [new expression](#section_1) and *releases* obtained memory area
+
 **注意**，delete expression执行的动作顺序与new expression是相反的，形式化的描述如下：
 
 ```C++
-delete expression() {
-    
+delete expression(T) {
+    T->destructor_of_T();   // 析构
+    operator delete(T);     // 释放内存
 }
 ```
-### 3. <span id="section_3">总结</span>
 
-## <span id="section_4">4. 参考文献 </span>
-1. cppreference, operator new: [http://en.cppreference.com/w/cpp/memory/new/operator_new](http://en.cppreference.com/w/cpp/memory/new/operator_new "oeprator new") <br/>
-2. cppreference, new expression: [http://en.cppreference.com/w/cpp/memory/new/operator_new](http://en.cppreference.com/w/cpp/memory/new/operator_new "new expression") <br/>
-3. Wikipedia, placement syntax: [https://en.wikipedia.org/wiki/Placement_syntax](https://en.wikipedia.org/wiki/Placement_syntax "placement syntax") <br/>
+#### <span id="sub_section_2_2"> 2.2 operator delete </span>
+同样，描述下`operator delete`的语法：
+```C++
+// replaceable deallocation functions
+1. void operator delete (void* ptr);
+2. void operator delete (void* ptr, const std::nothrow_t& tag);
+3. void operator delete (void* ptr, std::size_t sz);                (since C++14)
+
+// placement deallocation functions
+4. void operator delete (void* ptr, void* place);
+5. void operator delete (void*ptr, user-defined-args...);
+
+// class-specific deallocation functions
+6. void T::operator delete (void* ptr);
+7. void T::operator delete (void* ptr, std::size_t sz);
+8. void T::operator delete (void* ptr, user-defined-args);
+```
+以调用者的不同，将上述8种定义分为两种：
+
+- 调用者是delete expression：  
+定义1,3,6,7的调用者是delete expression，因此并不存在placement delete expression，具体的原因请参考[Stroustrup的回答](http://www.stroustrup.com/bs_faq2.html#placement-delete "Is there a placement delete")。所以使用placement new expression申请的内存，使用完毕后一定要确保正确释放。
+- 调用者是new expression：  
+定义2,4,5,8在new expression调用构造函数出现异常时被调用，例如：
+```C++
+#include <iostream>
+#include <new>
+#include <exception>
+
+struct X {
+    X() {
+        throw std::bad_alloc();
+    }
+
+    static void* operator new(std::size_t sz, const std::nothrow_t& tag) {
+        std::cout << "Allocate " << sz << " bytes!" << std::endl;
+        return ::operator new(sz);
+    }
+
+    static void operator delete(void *ptr, const std::nothrow_t& tag) {
+        std::cout << "deallocate!" << std::endl;
+        return ::operator delete(ptr);
+    }
+};
+
+int main() {
+    try {
+        X *x = new(std::nothrow) X;
+    } catch (const std::bad_alloc& e) {
+        std::cout << "Captured bad_alloc exception!" << std::endl;
+    }
+
+    return 0;
+}
+```
+输出结果如下：
+
+![Result of matching signature delete](images/matching_signature_delete.png)
+
+**注意**，`operator delete`函数的自定义参数一定要与`operator new`函数相匹配，否则在构造出现异常时`operator delete`函数无法被调用，申请的内存也就无法释放造成内存泄露。
+
+### 3. <span id="section_3">结语</span>
+new/delete表达式负责完成C++语言中内存申请/释放的工作，在使用时必须成对使用，否则可能出现内存泄露的现象，当然为了简化内存的管理，我们可以使用自C++11引进的[std::unique_ptr](http://en.cppreference.com/w/cpp/memory/unique_ptr "unique_ptr"), [std::shared_ptr](http://en.cppreference.com/w/cpp/memory/shared_ptr "shared_ptr")，它们能够保证指针在无人使用时被自动销毁。
 
 [1]: #operator_new_define "operator new的定义"
+---
+##### 参考文献 
+1. operator new: [http://en.cppreference.com/w/cpp/memory/new/operator_new](http://en.cppreference.com/w/cpp/memory/new/operator_new "oeprator new"), cppreference<br/>
+2. new expression: [http://en.cppreference.com/w/cpp/language/new](http://en.cppreference.com/w/cpp/language/new "new expression"), cppreference<br/>
+3. placement syntax: [https://en.wikipedia.org/wiki/Placement_syntax](https://en.wikipedia.org/wiki/Placement_syntax "placement syntax"), Wikipedia<br/>
+4. operator delete: [http://en.cppreference.com/w/cpp/memory/new/operator_delete](http://en.cppreference.com/w/cpp/memory/new/operator_delete "operator delete"), cppreference<br />
+5. delete expression: [http://en.cppreference.com/w/cpp/language/delete](http://en.cppreference.com/w/cpp/language/delete "delete expression"), cppreference
+
