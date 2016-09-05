@@ -36,7 +36,7 @@ Singleton Singleton::instance;
 这种实现方式在C++11前是线程非安全的。虽然C++11标准可以保证instance变量的初始化是线程安全的，但是是由于在C++语言中non-local static对象在不同编译单元中的初始化顺序是未定义的，所以如果在其他编译单元中调用Instance方法可能会返回一个未定义的实例，从而程序出现错误，具体讨论内容可以参见[此处](https://isocpp.org/wiki/faq/ctors#static-init-order "static initialization order")。
 
 ## 2. Lazy Singleton实现方式
-在GoF的[《Design Patterns : Elements of Reusable Object-Oriented Software》](http://www.uml.org.cn/c++/pdf/DesignPatterns.pdf "Design Patterns")中，单例模式被实现被下述形式：
+在GoF的[《Design Patterns : Elements of Reusable Object-Oriented Software》](http://www.uml.org.cn/c++/pdf/DesignPatterns.pdf "Design Patterns")中，单例模式被实现为下述形式：
 ```cpp
 // Singleton.h
 class Singleton
