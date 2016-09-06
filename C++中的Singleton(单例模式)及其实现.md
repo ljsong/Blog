@@ -238,8 +238,17 @@ Singleton& Singleton::Instance() {
 Note: usual implementations of this feature use variants of the double-checked locking pattern, which reduces runtime overhead for already-initialized local statics to a single non-atomic boolean comparison.
 
 从引文中可以看出，在多线程同时访问静态局部变量时，C++11标准保证了该初始化只能被执行一次。
-所以，到此，C++中的单例模式总算是在C++11标准中得到了完美的解决~
+所以，到此，C++中的单例模式终于在C++11标准中得到了完美的解决~
 
 ## 5. 总结
+C++中的单例模式实现方法有很多种，平常推荐使用4.2节描述的实现方式，简单、明了。当然，如果对C++11的内存模型很了解的话，可以使用内存屏障指令限制编译器的指令重排，而这些都需要在实践中不断的摸索、使用、总结才会愈加熟练。
 
 ## 6. 参考文献
+1. [单例模式(Singleton)及其C++实现](http://www.zkt.name/dan-li-mo-shi-singleton-ji-c-shi-xian/ "单例模式(Singleton)及其C++实现")
+2. [Double-Checked Locking is Fixed In C++11](http://preshing.com/20130930/double-checked-locking-is-fixed-in-cpp11/ "Double-Checked Locking is Fixed In C++11")
+3. [如何正确地写出单例模式](http://wuchong.me/blog/2014/08/28/how-to-correctly-write-singleton-pattern/ "如何正确地写出单例模式")
+4. [static storage duration](http://en.cppreference.com/w/cpp/language/storage_duration "static storage duration")
+5. [DDJ_Jul_Aug_2004_revised](http://www.aristeia.com/Papers/DDJ_Jul_Aug_2004_revised.pdf "DDJ_Jul_Aug_2004_revised.pdf")
+6. [Abstract Machines, Interpreters and Compilers](https://mortoray.com/2012/06/18/abstract-machines-interpreters-and-compilers/ "Abstract Machine")
+7. [std::memory_order](http://en.cppreference.com/w/cpp/atomic/memory_order "memory order")
+8. [Acquire and Release Fences](http://preshing.com/20130922/acquire-and-release-fences/ "acquire-release-semantic")
